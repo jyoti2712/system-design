@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Design — Complete Notes</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #18181f;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8e8f0;
+    --muted: #7a7a9a;
+    --accent: #7c6af7;
+    --accent2: #4ef0c0;
+    --accent3: #f76a6a;
+    --accent4: #f7b76a;
+    --accent5: #6af7c0;
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* NOISE TEXTURE */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.4;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    z-index: 100;
+    display: flex; flex-direction: column;
+  }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .logo {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .logo-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .logo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--font-mono); }
+
+  .search-wrap { padding: 16px; border-bottom: 1px solid var(--border); }
+  .search {
+    width: 100%; padding: 8px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--font-body);
+    outline: none; transition: border .2s;
+  }
+  .search:focus { border-color: var(--accent); }
+  .search::placeholder { color: var(--muted); }
+
+  .nav-section { padding: 8px 0; }
+  .nav-cat {
+    padding: 10px 24px 4px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--muted);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 24px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .15s;
+    border-left: 2px solid transparent;
+    text-decoration: none;
+  }
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--accent2); border-left-color: var(--accent2); background: rgba(78,240,192,.05); }
+  .nav-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  /* MAIN */
+  .main { margin-left: 260px; min-height: 100vh; }
+
+  /* HERO */
+  .hero {
+    padding: 80px 60px 60px;
+    border-bottom: 1px solid var(--border);
+    position: relative; overflow: hidden;
+  }
+  .hero::after {
+    content: '';
+    position: absolute; top: -100px; right: -100px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(124,106,247,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent2);
+    background: rgba(78,240,192,.08);
+    border: 1px solid rgba(78,240,192,.2);
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    letter-spacing: .06em;
+  }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(36px, 5vw, 60px);
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1.05;
+    margin-bottom: 16px;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero p { color: var(--muted); max-width: 540px; font-size: 16px; line-height: 1.7; }
+  .hero-stats {
+    display: flex; gap: 40px; margin-top: 36px;
+    flex-wrap: wrap;
+  }
+  .stat-item {}
+  .stat-num {
+    font-family: var(--font-display);
+    font-size: 28px; font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .stat-label { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+
+  /* CONTENT */
+  .content { padding: 40px 60px 80px; }
+
+  /* TOPIC CARD */
+  .topic-section {
+    margin-bottom: 60px;
+    scroll-margin-top: 24px;
+  }
+  .section-header {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .section-cat {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  .topic-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .topic-card:hover { border-color: var(--border2); }
+
+  .card-inner { padding: 28px 32px; }
+
+  .definition {
+    font-size: 15px;
+    color: var(--text);
+    line-height: 1.8;
+    margin-bottom: 24px;
+    padding-left: 16px;
+    border-left: 3px solid var(--accent);
+  }
+
+  .label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .example {
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: #b0b0cc;
+    border: 1px solid var(--border);
+  }
+  .example strong { color: var(--accent2); font-weight: 500; }
+
+  /* DIAGRAM */
+  .diagram-wrap {
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .diagram-wrap svg { display: block; width: 100%; max-width: 680px; }
+
+  /* KEY TERMS */
+  .terms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .term {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .term-key {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent);
+    margin-bottom: 2px;
+  }
+  .term-val { font-size: 12px; color: var(--muted); }
+
+  /* PROS CONS */
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .pros, .cons {
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .pros {
+    background: rgba(78,240,192,.05);
+    border: 1px solid rgba(78,240,192,.15);
+  }
+  .cons {
+    background: rgba(247,106,106,.05);
+    border: 1px solid rgba(247,106,106,.15);
+  }
+  .pros h4 { color: var(--accent2); font-size: 12px; font-weight: 500; margin-bottom: 8px; font-family: var(--font-mono); }
+  .cons h4 { color: var(--accent3); font-size: 12px; font-weight: 500; margin-bottom: 8px; font-family: var(--font-mono); }
+  .pros li, .cons li { font-size: 13px; color: var(--muted); margin-left: 16px; margin-bottom: 4px; }
+
+  /* PROCESS STEPS */
+  .process {
+    display: flex; flex-direction: column; gap: 0;
+    margin-bottom: 24px;
+  }
+  .step {
+    display: flex; gap: 16px; align-items: flex-start;
+    position: relative;
+  }
+  .step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 15px; top: 36px;
+    width: 1px; height: calc(100% - 4px);
+    background: var(--border2);
+  }
+  .step-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .step-content { padding: 6px 0 20px; }
+  .step-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .step-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* COMPARISON TABLE */
+  .table-wrap { overflow-x: auto; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: 10px 14px;
+    background: var(--surface2);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .05em;
+    font-weight: 400;
+    border-bottom: 1px solid var(--border2);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--accent2); font-family: var(--font-mono); font-size: 12px; }
+
+  /* FORMULA BOX */
+  .formula {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--accent4);
+    margin-bottom: 16px;
+  }
+
+  /* CATEGORY COLORS */
+  .cat-networking { --c: #6af7c0; }
+  .cat-scalability { --c: #7c6af7; }
+  .cat-performance { --c: #f7b76a; }
+  .cat-databases { --c: #6ab4f7; }
+  .cat-theory { --c: #f76a6a; }
+  .cat-architecture { --c: #c06af7; }
+  .cat-async { --c: #6af7f7; }
+  .cat-security { --c: #f7f76a; }
+  .cat-algorithms { --c: #f76ac0; }
+  .cat-design { --c: #6af790; }
+  .cat-reliability { --c: #f7956a; }
+  .cat-communication { --c: #6a95f7; }
+
+  .section-cat { background: color-mix(in srgb, var(--c) 10%, transparent); color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 25%, transparent); }
+  .section-icon { background: color-mix(in srgb, var(--c) 10%, transparent); }
+
+  /* MOBILE MENU */
+  .hamburger { display: none; }
+
+  /* SCROLLBAR */
+  .main::-webkit-scrollbar { width: 6px; }
+  .main::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* BACK TO TOP */
+  .back-top {
+    position: fixed; bottom: 28px; right: 28px;
+    width: 44px; height: 44px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    color: var(--muted);
+    transition: all .2s;
+    z-index: 200;
+    text-decoration: none;
+  }
+  .back-top:hover { border-color: var(--accent); color: var(--accent); }
+
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); transition: transform .3s; }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .hero { padding: 60px 24px 40px; }
+    .content { padding: 24px 24px 60px; }
+    .hamburger {
+      display: block;
+      position: fixed; top: 16px; left: 16px;
+      z-index: 200;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      width: 40px; height: 40px;
+      cursor: pointer;
+      font-size: 18px;
+      color: var(--text);
+    }
+    .pros-cons { grid-template-columns: 1fr; }
+  }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .topic-section { animation: fadeUp .4s ease both; }
+
+  /* HIGHLIGHT SEARCH */
+  mark { background: rgba(124,106,247,.3); color: var(--text); border-radius: 2px; padding: 0 2px; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="logo-title">SysDes.io</div>
+    <div class="logo-sub">Complete Reference Guide</div>
+  </div>
+  <div class="search-wrap">
+    <input class="search" placeholder="Search topics..." id="searchInput" oninput="handleSearch(this.value)">
+  </div>
+  <div class="nav-section" id="navLinks"></div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+  <section class="hero">
+    <div class="hero-tag">Complete Reference — 2024</div>
+    <h1>System Design<br><span>Complete Notes</span></h1>
+    <p>Every concept you need for system design interviews and building scalable distributed systems — with real-world examples and visual diagrams.</p>
+    <div class="hero-stats">
+      <div class="stat-item"><div class="stat-num" id="topicCount">30+</div><div class="stat-label">Topics covered</div></div>
+      <div class="stat-item"><div class="stat-num">12</div><div class="stat-label">Categories</div></div>
+      <div class="stat-item"><div class="stat-num">∞</div><div class="stat-label">Scalability</div></div>
+    </div>
+  </section>
+  <div class="content" id="content"></div>
+</main>
+
+<button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+<a class="back-top" href="#" title="Back to top">↑</a>
+
+<script>
+const topics = [
+  {
+    id: "dns", cat: "Networking", icon: "🌐", color: "networking",
+    title: "DNS — Domain Name System",
+    definition: "DNS (Domain Name System) is the internet's phone book. It translates human-readable domain names like <code style='color:var(--accent2)'>google.com</code> into machine-readable IP addresses like <code style='color:var(--accent2)'>142.250.80.46</code>. Without DNS, you'd have to memorize IP addresses for every website.",
+    steps: [
+      { title: "Browser Cache Check", desc: "Browser checks its local DNS cache. If the IP is cached and not expired, uses it directly (sub-millisecond)." },
+      { title: "OS Cache / hosts file", desc: "If not in browser cache, OS checks /etc/hosts file and its own resolver cache." },
+      { title: "Recursive Resolver", desc: "Request goes to your ISP's recursive resolver. It will do all the heavy lifting on your behalf." },
+      { title: "Root Nameserver Query", desc: "Resolver asks one of 13 root servers. Root says 'I don't know google.com, but .com is managed by Verisign — ask them'." },
+      { title: "TLD Nameserver", desc: "Resolver asks the .com TLD server. It returns the authoritative nameserver for google.com." },
+      { title: "Authoritative Nameserver", desc: "Resolver asks Google's own nameserver. It returns the actual IP: 142.250.80.46. This answer is cached with TTL." },
+      { title: "Response to Client", desc: "Resolver returns IP to browser. Browser connects to 142.250.80.46. Total time: 50–200ms on first lookup, <1ms on cache hit." }
+    ],
+    example: "<strong>Real example:</strong> You type <em>amazon.com</em> → Browser checks cache (miss) → OS resolver asks ISP → ISP resolver queries root → Root says ask .com TLD → TLD returns Amazon's NS (ns1.p31.dynect.net) → Amazon NS returns 176.32.103.205 → Connection established in ~80ms.",
+    terms: [
+      { k: "A Record", v: "Maps domain → IPv4 address" },
+      { k: "AAAA Record", v: "Maps domain → IPv6 address" },
+      { k: "CNAME", v: "Alias pointing to another domain" },
+      { k: "MX Record", v: "Specifies mail server" },
+      { k: "NS Record", v: "Specifies nameservers for domain" },
+      { k: "TTL", v: "How long to cache the record (seconds)" },
+      { k: "SOA", v: "Start of Authority — zone metadata" },
+      { k: "PTR Record", v: "Reverse DNS: IP → domain" }
+    ],
+    pros: ["Caching reduces lookup latency to <1ms", "Distributed — no single point of failure", "Hierarchical design enables massive scale", "Human-readable names instead of IPs"],
+    cons: ["DNS propagation can take 24-48 hours", "Vulnerable to DNS spoofing/cache poisoning", "TTL too low = high DNS traffic; too high = stale", "DNS-based load balancing is coarse-grained"]
+  },
+  {
+    id: "loadbalancer", cat: "Scalability", icon: "⚖️", color: "scalability",
+    title: "Load Balancer",
+    definition: "A load balancer distributes incoming network traffic across multiple servers ensuring no single server becomes overwhelmed. It acts as a reverse proxy, sitting between clients and backend servers, improving availability, throughput, and fault tolerance.",
+    steps: [
+      { title: "Client Request Arrives", desc: "Client sends HTTP request to your domain. DNS resolves to the load balancer's VIP (Virtual IP)." },
+      { title: "Health Check", desc: "Load balancer continuously pings backend servers (every 5–30s). Dead servers are removed from the pool automatically." },
+      { title: "Algorithm Selection", desc: "LB picks a server based on configured algorithm: Round Robin, Least Connections, IP Hash, or Weighted Round Robin." },
+      { title: "Request Forwarding", desc: "LB forwards the request to the chosen server, replacing headers (X-Forwarded-For with client IP)." },
+      { title: "Response Passthrough", desc: "Backend server processes request and sends response back through the LB to the client." },
+      { title: "Session Persistence", desc: "If sticky sessions enabled, same client always routes to same server (based on cookie or IP hash)." }
+    ],
+    example: "<strong>Netflix example:</strong> 200M users hit api.netflix.com → AWS ALB receives all traffic → Checks health of 500 backend pods → Routes using Least Connections to the least busy pod → If Pod A has 1000 active connections and Pod B has 200, new request goes to Pod B → Pod crashes? Removed from rotation in 10 seconds.",
+    terms: [
+      { k: "Round Robin", v: "Rotate through servers sequentially" },
+      { k: "Least Connections", v: "Route to server with fewest active connections" },
+      { k: "IP Hash", v: "Same client IP → same server (stickiness)" },
+      { k: "Weighted", v: "Stronger servers get proportionally more traffic" },
+      { k: "Layer 4 LB", v: "TCP/UDP level — fast, no content inspection" },
+      { k: "Layer 7 LB", v: "HTTP level — can route by URL, headers, cookies" },
+      { k: "Health Check", v: "Regular probe to detect dead servers" },
+      { k: "VIP", v: "Virtual IP — the single IP clients connect to" },
+      { k: "SSL Termination", v: "LB decrypts HTTPS, backend gets plain HTTP" }
+    ],
+    pros: ["Eliminates single point of failure", "Enables horizontal scaling", "SSL termination offloads crypto from backends", "Geographic routing for global apps", "Blue-green and canary deployments"],
+    cons: ["LB itself can be a bottleneck (use active-passive pair)", "Session stickiness complicates stateless design", "Added network hop adds ~1ms latency", "Cost of managed LB services"]
+  },
+  {
+    id: "caching", cat: "Performance", icon: "⚡", color: "performance",
+    title: "Caching",
+    definition: "Caching stores copies of frequently accessed data in a fast-access layer (usually in-memory) so future requests can be served faster without hitting the original, slower source (database, API, or computation). It's one of the highest-ROI optimizations in system design.",
+    steps: [
+      { title: "Request Arrives", desc: "Application receives a request for data (e.g., user profile for user_id=12345)." },
+      { title: "Check Cache First", desc: "App checks Redis/Memcached: GET user:12345. If key exists and not expired → Cache HIT → return in ~0.1ms." },
+      { title: "Cache Miss — Fetch Source", desc: "Key not found → Cache MISS. App queries the database: SELECT * FROM users WHERE id=12345. Takes 20–100ms." },
+      { title: "Populate Cache", desc: "Store result in cache: SET user:12345 {data} EX 3600 (expires in 1 hour). All future requests served from cache." },
+      { title: "Cache Invalidation", desc: "When user updates profile, invalidate cache: DEL user:12345. Or use write-through: update cache and DB simultaneously." }
+    ],
+    example: "<strong>Twitter timeline:</strong> @elonmusk's timeline requested by 10,000 users/second. Without cache: 10,000 DB queries/sec = DB meltdown. With Redis cache: First request computes timeline (200ms), stores in Redis as 'timeline:elonmusk' TTL=30s. Next 9,999 requests served from memory in 0.1ms each. 2000x speedup.",
+    terms: [
+      { k: "Cache HIT", v: "Data found in cache — fast path" },
+      { k: "Cache MISS", v: "Data not in cache — must fetch from source" },
+      { k: "TTL", v: "Time-to-live — how long before cache expires" },
+      { k: "LRU", v: "Least Recently Used — evict oldest unused items" },
+      { k: "LFU", v: "Least Frequently Used — evict least popular items" },
+      { k: "Write-through", v: "Write to cache AND DB simultaneously" },
+      { k: "Write-back", v: "Write to cache first, sync to DB later" },
+      { k: "Write-around", v: "Write directly to DB, bypass cache" },
+      { k: "Cache stampede", v: "Many simultaneous misses overwhelm DB" },
+      { k: "Thundering herd", v: "Cache expiry causes sudden DB spike" }
+    ],
+    pros: ["10–10,000x latency reduction", "Dramatically reduces database load", "Can absorb massive traffic spikes", "Reduces cloud compute costs"],
+    cons: ["Cache invalidation is notoriously hard", "Stale data risk", "Memory is expensive", "Cold start: first request always misses", "Distributed cache consistency challenges"]
+  },
+  {
+    id: "cap", cat: "Theory", icon: "🔺", color: "theory",
+    title: "CAP Theorem",
+    definition: "Brewer's CAP Theorem states that a distributed data store can only guarantee 2 of these 3 properties simultaneously: Consistency (every read sees the latest write), Availability (every request gets a response, not an error), and Partition Tolerance (system keeps running despite network splits). Since network partitions are inevitable, real systems must choose between C and A.",
+    steps: [
+      { title: "Network Partition Occurs", desc: "Node A and Node B can no longer communicate due to a network failure (split-brain scenario)." },
+      { title: "CP Choice (HBase/Zookeeper)", desc: "System refuses to serve reads/writes until partition heals, to avoid returning stale data. Returns error. Stays consistent but unavailable." },
+      { title: "AP Choice (Cassandra/DynamoDB)", desc: "System continues serving reads and writes on both sides of the partition. May return stale data. Stays available but inconsistent." },
+      { title: "Partition Heals", desc: "Network restores. AP systems run reconciliation to merge diverged data. CP systems resume normal operation." }
+    ],
+    example: "<strong>CA: PostgreSQL (single node)</strong> — no partition tolerance possible. <strong>CP: Zookeeper</strong> — leader election pauses cluster during split, ensuring only one authoritative view. <strong>AP: Cassandra</strong> — always writes to available nodes; resolves conflicts later with timestamps (last-write-wins). DynamoDB also AP with eventual consistency, strong consistency optional.",
+    terms: [
+      { k: "Consistency", v: "All nodes see the same data at the same time" },
+      { k: "Availability", v: "Every request receives a non-error response" },
+      { k: "Partition Tolerance", v: "System works despite network failures" },
+      { k: "Eventual Consistency", v: "All nodes converge to same state eventually" },
+      { k: "Strong Consistency", v: "Reads always return the latest write" },
+      { k: "PACELC", v: "Extension: also trade latency vs consistency normally" },
+      { k: "Split-brain", v: "Two nodes think they're both the primary" }
+    ],
+    pros: ["Clear framework for DB selection decisions", "Forced acknowledgment of distributed tradeoffs", "PACELC extends it to cover latency tradeoffs"],
+    cons: ["Binary view oversimplifies reality", "Modern systems offer tunable consistency levels", "Network partitions are rare in practice", "Latency vs consistency often more important daily tradeoff"]
+  },
+  {
+    id: "replication", cat: "Databases", icon: "🗄️", color: "databases",
+    title: "Database Replication",
+    definition: "Replication copies data from one primary (master) database to one or more replicas (secondaries/slaves). It provides high availability, read scaling, disaster recovery, and geographic distribution. Data written to primary is propagated to all replicas.",
+    steps: [
+      { title: "Write to Primary", desc: "Application writes go exclusively to the primary node (INSERT, UPDATE, DELETE). Primary is the single source of truth." },
+      { title: "Write to Binary Log", desc: "Primary records all changes to a binary log (binlog in MySQL, WAL in PostgreSQL) before acknowledging the write." },
+      { title: "Log Shipping", desc: "Replicas connect to primary and request new log entries. Primary streams log entries to replicas (async or sync)." },
+      { title: "Replica Applies Changes", desc: "Each replica replays the log entries in order, keeping its data synchronized with primary." },
+      { title: "Read from Replicas", desc: "Application reads can be distributed to any replica. Reduces primary load. May see slightly stale data (replication lag)." },
+      { title: "Failover", desc: "If primary fails, orchestrator (Orchestrator, Patroni) promotes the most up-to-date replica to new primary within seconds." }
+    ],
+    example: "<strong>Instagram at scale:</strong> Hundreds of millions of daily active users. 1 PostgreSQL primary handles all writes (photos, follows, likes). 8 read replicas spread globally handle all reads. Replication lag: 10–50ms. Users might see slightly older follower counts on replicas — acceptable. Primary dies → Patroni auto-promotes a replica in ~30 seconds.",
+    terms: [
+      { k: "Master/Primary", v: "Handles all writes, authoritative copy" },
+      { k: "Slave/Replica", v: "Async copy, handles reads" },
+      { k: "Binlog / WAL", v: "Write-Ahead Log: ordered record of changes" },
+      { k: "Replication lag", v: "Time delay between primary write and replica sync" },
+      { k: "Synchronous replication", v: "Write confirmed only after replica synced (durable but slow)" },
+      { k: "Async replication", v: "Write confirmed immediately, replica syncs later (fast but potential data loss)" },
+      { k: "Semi-sync", v: "At least one replica must confirm before primary acks" },
+      { k: "Failover", v: "Promoting replica to primary when primary fails" }
+    ],
+    pros: ["High availability and automatic failover", "Read scaling — distribute queries across replicas", "Geographic distribution — replica per region", "Backup without stopping primary"],
+    cons: ["Replication lag means replicas may serve stale reads", "Failover window (30s–2min) = some downtime", "Storage cost × number of replicas", "Multi-master replication has conflict resolution complexity"]
+  },
+  {
+    id: "sharding", cat: "Databases", icon: "🔀", color: "databases",
+    title: "Database Sharding",
+    definition: "Sharding (horizontal partitioning) splits a large dataset across multiple database instances called shards. Each shard holds a disjoint subset of the data. Unlike vertical scaling (bigger machine), sharding scales out (more machines), enabling theoretically unlimited data capacity and write throughput.",
+    steps: [
+      { title: "Choose Shard Key", desc: "Pick a field to partition on (user_id, geo_region, timestamp). Bad choice = hot spots. Good choice = even distribution." },
+      { title: "Determine Number of Shards", desc: "Start with N shards (e.g., 16). Use consistent hashing so you can add shards later without remapping all data." },
+      { title: "Route Query to Shard", desc: "App server or proxy: shard_id = hash(user_id) % N. For user_id=12345: hash(12345)%16 = shard 7. Query goes to Shard 7 DB." },
+      { title: "Shard Handles Query", desc: "Each shard is a full-fledged DB with its own replicas. Query executes only against relevant shard's smaller dataset." },
+      { title: "Cross-Shard Operations", desc: "Queries spanning multiple shards (global analytics) must fan out to all shards and merge results — expensive, avoid by design." }
+    ],
+    example: "<strong>WhatsApp messages (100B+):</strong> Impossible on one DB. Sharding by user_id. 1000 shards × PostgreSQL. User Alice (id=7340021) → hash(7340021)%1000 = Shard 340. All her messages stored there. Alice sends Bob a message → written to Alice's shard AND Bob's shard (her sent messages, his received messages). Each shard handles ~100M messages instead of 100B.",
+    terms: [
+      { k: "Shard key", v: "The field used to route data to shards" },
+      { k: "Range sharding", v: "Shard by value range (A-M on shard 1, N-Z on shard 2)" },
+      { k: "Hash sharding", v: "hash(key) % N — even distribution" },
+      { k: "Directory sharding", v: "Lookup table maps key → shard ID" },
+      { k: "Hot shard", v: "One shard receiving disproportionate traffic" },
+      { k: "Resharding", v: "Splitting or merging shards as data grows" },
+      { k: "Scatter-gather", v: "Fan out query to all shards, merge results" }
+    ],
+    pros: ["Near-unlimited horizontal write scaling", "Smaller index per shard = faster queries", "Isolate hot data to dedicated hardware", "Geographic sharding for data locality laws"],
+    cons: ["Cross-shard JOINs are complex and slow", "Resharding existing data is painful", "Uneven key distribution = hot spots", "Distributed transactions across shards very complex", "Operational complexity multiplied by shard count"]
+  },
+  {
+    id: "indexes", cat: "Databases", icon: "📑", color: "databases",
+    title: "Database Indexing",
+    definition: "A database index is a separate data structure (typically a B-Tree) that allows the database to find rows without scanning every row in a table. Like the index in a book — you jump to the right page instead of reading everything. Without indexes, even simple queries on large tables take seconds. With proper indexes, microseconds.",
+    steps: [
+      { title: "Query Without Index", desc: "SELECT * FROM users WHERE email='alice@example.com'. Without index: full table scan. 100M rows × read each = minutes." },
+      { title: "B-Tree Index Created", desc: "CREATE INDEX idx_users_email ON users(email). DB builds a balanced binary tree sorted by email values." },
+      { title: "Query With Index", desc: "Same query now traverses the B-Tree. Binary search finds 'alice@example.com' in O(log N) steps ≈ 27 steps for 100M rows." },
+      { title: "Index Points to Row", desc: "Index stores (email_value → row_id/page_location). DB jumps directly to the physical row location. ~microseconds." },
+      { title: "Index Maintenance", desc: "On every INSERT/UPDATE/DELETE, indexes must be updated. More indexes = slower writes. Always balance read vs write needs." }
+    ],
+    example: "<strong>Slack message search:</strong> 10 billion messages. Find all messages by user_id=42 in channel_id=7. Without indexes: scan 10B rows. With composite index (user_id, channel_id, created_at): B-Tree narrows to exactly the right messages in ~log(10B) = 33 comparisons. 300M× faster.",
+    terms: [
+      { k: "B-Tree index", v: "Default. Balanced tree, supports range queries" },
+      { k: "Hash index", v: "O(1) exact match only, no range queries" },
+      { k: "Composite index", v: "Index on multiple columns (col1, col2, col3)" },
+      { k: "Covering index", v: "Index contains all query columns — no row lookup needed" },
+      { k: "Full-text index", v: "Enables text search with relevance ranking" },
+      { k: "Partial index", v: "Index only rows matching a condition" },
+      { k: "Cardinality", v: "Number of distinct values — high cardinality = better index" },
+      { k: "Index selectivity", v: "Fraction of rows matched — low = better index" },
+      { k: "EXPLAIN/EXPLAIN ANALYZE", v: "Shows query execution plan and index usage" }
+    ],
+    pros: ["Dramatically faster read queries (O(N) → O(log N))", "Enables efficient sorting and range queries", "Enforces uniqueness (UNIQUE index)", "Essential for foreign key performance"],
+    cons: ["Every write must update all indexes", "Indexes consume significant disk space", "Too many indexes slow down bulk inserts", "Wrong index doesn't help — need EXPLAIN", "Index fragmentation over time needs maintenance"]
+  },
+  {
+    id: "api", cat: "APIs", icon: "🔌", color: "communication",
+    title: "API Design — REST, GraphQL, gRPC",
+    definition: "APIs define how systems communicate. REST uses HTTP verbs and resource URLs. GraphQL lets clients query exactly the data they need. gRPC uses Protocol Buffers for high-performance typed binary communication. Choosing the right API style is a fundamental system design decision.",
+    steps: [
+      { title: "REST Request", desc: "GET /users/123/posts HTTP/1.1. Server returns all post fields even if client only needs titles. Simple, human-readable, cacheable." },
+      { title: "GraphQL Request", desc: "POST /graphql with body: { user(id:123) { posts { title, createdAt } } }. Returns only requested fields. One request can fetch nested data." },
+      { title: "gRPC Request", desc: "Client calls UserService.GetUserPosts(GetUserPostsRequest{userId:123, fields:[TITLE]}). Binary Protobuf serialized. 5–10× faster than JSON." },
+      { title: "Response Handling", desc: "REST: parse JSON array. GraphQL: parse data.user.posts array. gRPC: deserialize Protobuf GetUserPostsResponse object with type safety." }
+    ],
+    example: "<strong>REST over-fetching problem:</strong> Mobile app needs user's name and avatar. GET /users/123 returns 50 fields including address, payment methods, preferences. Wastes bandwidth on slow mobile. <strong>GraphQL fix:</strong> { user(id:123) { name, avatarUrl } } — returns exactly 2 fields. <strong>gRPC microservices:</strong> RecommendationService calls UserService.GetPreferences 50,000 times/second — must be fast. gRPC + Protobuf 10× faster than REST + JSON.",
+    terms: [
+      { k: "REST", v: "Representational State Transfer — HTTP + stateless + resources" },
+      { k: "GraphQL", v: "Query language for your API — ask for exactly what you need" },
+      { k: "gRPC", v: "Google's RPC framework using Protocol Buffers" },
+      { k: "Idempotent", v: "Same request, same result — GET, PUT, DELETE are idempotent" },
+      { k: "Protobuf", v: "Binary serialization format — smaller & faster than JSON" },
+      { k: "OpenAPI/Swagger", v: "REST API documentation standard" },
+      { k: "Rate limiting", v: "Throttle requests per client per time window" },
+      { k: "Versioning", v: "/v1/, /v2/ — don't break existing clients" },
+      { k: "N+1 problem", v: "GraphQL fetching: 1 query returns N items, then N more queries" }
+    ],
+    pros: ["REST: simple, universal, cacheable, great tooling", "GraphQL: no over/under-fetching, self-documenting, flexible", "gRPC: fastest, strongly typed, native streaming, great for microservices"],
+    cons: ["REST: over-fetching, under-fetching, multiple round trips", "GraphQL: N+1 query problem, hard to cache, complex authorization", "gRPC: not human-readable, no browser support without proxy, steep learning curve"]
+  },
+  {
+    id: "messagequeue", cat: "Async", icon: "📬", color: "async",
+    title: "Message Queues & Pub/Sub",
+    definition: "Message queues (MQ) decouple service communication: producers send messages to a queue without waiting for consumers. Pub/Sub (Publish-Subscribe) broadcasts messages to multiple subscribers. Both patterns are essential for building resilient, scalable async architectures.",
+    steps: [
+      { title: "Producer Publishes", desc: "Service A (producer) sends a message to a topic/queue. It doesn't know or care who consumes it. Immediately returns without waiting." },
+      { title: "Broker Receives", desc: "Kafka/RabbitMQ broker durably stores the message on disk. Message is replicated for fault tolerance." },
+      { title: "Consumer Groups Subscribe", desc: "Multiple consumer services subscribe to the topic. Each consumer group gets every message (fan-out)." },
+      { title: "Parallel Processing", desc: "Consumers process messages concurrently and independently. Slow consumer doesn't block fast consumer. Each at their own pace." },
+      { title: "Acknowledgment", desc: "Consumer sends ACK after successfully processing. If consumer crashes before ACK, message is redelivered. Ensures at-least-once delivery." },
+      { title: "Dead Letter Queue", desc: "Messages that fail processing N times go to DLQ for inspection. Prevents poison messages from blocking the queue forever." }
+    ],
+    example: "<strong>Uber ride request flow:</strong> User books ride → OrderService publishes RideRequested event to Kafka → 4 consumers process in parallel: DriverMatchingService (find nearby drivers), PricingService (surge pricing), NotificationService (push notification to driver), AnalyticsService (log event). If NotificationService is down, others continue unaffected. Kafka retains messages 7 days.",
+    terms: [
+      { k: "Producer", v: "Sends messages to queue/topic" },
+      { k: "Consumer", v: "Reads and processes messages" },
+      { k: "Broker", v: "The message queue server (Kafka, RabbitMQ)" },
+      { k: "Topic / Queue", v: "Named channel for messages" },
+      { k: "Consumer Group", v: "Group of consumers sharing a topic (each message → one member)" },
+      { k: "Offset", v: "Kafka: position in log — consumers track their position" },
+      { k: "Partition", v: "Kafka: parallel lanes within a topic for throughput" },
+      { k: "ACK", v: "Consumer confirms message processed successfully" },
+      { k: "DLQ", v: "Dead Letter Queue — failed messages go here" },
+      { k: "At-least-once", v: "Delivered minimum once — may duplicate on failure" },
+      { k: "Exactly-once", v: "Delivered exactly once — hard, expensive, Kafka supports it" }
+    ],
+    pros: ["Decouples services completely", "Absorbs traffic spikes (queue buffers bursts)", "Retry on failure without code changes", "Fan-out to multiple consumers", "Replay events from Kafka log"],
+    cons: ["Eventual consistency — not immediate", "Message ordering challenges at scale", "At-least-once means deduplication needed", "Additional infrastructure to operate", "Monitoring and debugging harder than sync calls"]
+  },
+  {
+    id: "cdn", cat: "Performance", icon: "🌍", color: "performance",
+    title: "CDN — Content Delivery Network",
+    definition: "A CDN is a globally distributed network of proxy servers (edge nodes / Points of Presence) that cache static content close to users. Instead of every user's request hitting your origin server in one location, requests are served from the geographically nearest edge node, dramatically reducing latency and origin server load.",
+    steps: [
+      { title: "User Requests Asset", desc: "Indian user requests https://cdn.netflix.com/video/abc.mp4. DNS resolves to nearest CDN edge node IP (in Mumbai)." },
+      { title: "Edge Cache Check", desc: "Mumbai edge node checks its cache. If asset is cached and not expired — Cache HIT — serve directly. Latency: 5–15ms." },
+      { title: "Cache Miss — Origin Fetch", desc: "First request ever to this edge: Cache MISS. Edge fetches from Netflix origin server in US (200ms+ round trip)." },
+      { title: "Cache & Serve", desc: "Edge caches the asset with Cache-Control headers (max-age=86400). Serves to user. All future Mumbai users get 5ms response." },
+      { title: "Cache Invalidation", desc: "Netflix updates the video? Sends CDN API call to purge/invalidate the asset globally across all edges. New version fetched on next request." }
+    ],
+    example: "<strong>Cloudflare for a startup:</strong> Your app is hosted in Frankfurt. Without CDN: Brazilian user → 200ms latency, US user → 100ms. With Cloudflare: Brazilian user routed to São Paulo PoP (10ms), US user to New York PoP (8ms). Origin server traffic drops 95% — only cache misses hit Frankfurt. DDoS attack? Cloudflare absorbs it at the edge.",
+    terms: [
+      { k: "PoP", v: "Point of Presence — CDN data center location" },
+      { k: "Edge node", v: "Server at the PoP that caches content" },
+      { k: "Origin server", v: "Your actual backend server" },
+      { k: "Cache-Control", v: "HTTP header: max-age, no-cache, public, private" },
+      { k: "Pull CDN", v: "Edge fetches from origin on first miss automatically" },
+      { k: "Push CDN", v: "You proactively upload content to edge nodes" },
+      { k: "Purge/Invalidation", v: "Force removal of cached content from edges" },
+      { k: "Anycast", v: "Same IP, multiple locations — routes to nearest" },
+      { k: "Edge computing", v: "Run code at CDN edge (Cloudflare Workers, Lambda@Edge)" }
+    ],
+    pros: ["Dramatically lower latency globally", "Offloads 80–95% of traffic from origin", "DDoS protection at edge scale", "High availability via geographic redundancy", "Reduces bandwidth costs from origin"],
+    cons: ["Cache invalidation propagation takes time", "Dynamic content can't easily be cached", "Cost for high-bandwidth applications", "Vendor lock-in for edge compute features", "Cache poisoning security risk if misconfigured"]
+  },
+  {
+    id: "consistent_hashing", cat: "Algorithms", icon: "🔄", color: "algorithms",
+    title: "Consistent Hashing",
+    definition: "Consistent hashing is a technique to distribute data or load across nodes such that adding or removing a node only requires remapping K/N keys (where K=total keys, N=nodes). Contrast: naive modulo hashing (hash(key)%N) remaps ALL keys when N changes, causing a complete cache invalidation.",
+    steps: [
+      { title: "Create Hash Ring", desc: "Define a circular key space from 0 to 2^32. All possible hash values live on this ring." },
+      { title: "Place Nodes on Ring", desc: "Hash each server's identifier: hash('server-A') = 12345. Server A lives at position 12345 on the ring." },
+      { title: "Add Virtual Nodes", desc: "Each physical server gets 150–200 virtual node positions on the ring (hash('server-A-1'), hash('server-A-2')...). This prevents hotspots and improves distribution uniformity." },
+      { title: "Route a Key", desc: "To find which server owns key K: hash(K) = position P. Walk clockwise from P until hitting a (virtual) node. That node's physical server owns K." },
+      { title: "Add a New Server", desc: "New server E added to ring. Only the keys between E's predecessor and E's position move from their old owner to E. ~1/N of total keys move." },
+      { title: "Remove a Server", desc: "Server B removed. Only B's keys move — to B's clockwise successor. All other servers unchanged." }
+    ],
+    example: "<strong>Cassandra distributed DB:</strong> 6 nodes hold all data. New node 7 added to handle growth. Without consistent hashing: 100% of data would need redistribution (expensive). With consistent hashing: ~1/7 ≈ 14% of data moves to new node. Cluster stays online during rebalancing. Virtual nodes ensure each physical node gets ~equal share even with different hardware capabilities.",
+    terms: [
+      { k: "Hash ring", v: "Circular key space [0, 2^32)" },
+      { k: "Virtual nodes (vnodes)", v: "Multiple ring positions per physical node" },
+      { k: "K/N remapping", v: "Adding 1 node moves only ~1/N of all keys" },
+      { k: "Clockwise routing", v: "Key belongs to nearest node clockwise on ring" },
+      { k: "Replication factor", v: "Each key stored on R successive clockwise nodes" }
+    ],
+    pros: ["Minimal key remapping when nodes change", "Naturally handles heterogeneous hardware via weights", "Used in Cassandra, DynamoDB, Memcached, Akamai"],
+    cons: ["Non-uniform distribution without virtual nodes", "More complex to implement than modulo hashing", "Hotspots possible with very skewed key distribution"]
+  },
+  {
+    id: "proxies", cat: "Networking", icon: "🔁", color: "networking",
+    title: "Forward & Reverse Proxies",
+    definition: "A forward proxy sits between clients and the internet, acting on behalf of clients (VPN, content filtering). A reverse proxy sits in front of servers, acting on behalf of servers (load balancing, caching, SSL termination, security). They're fundamentally different despite similar names.",
+    steps: [
+      { title: "Forward Proxy: Client Setup", desc: "Client configures proxy: all requests go to proxy first. Client IP hidden from destination. Used in: corporate firewalls, VPNs, bypassing geo-restrictions." },
+      { title: "Forward Proxy: Request Flow", desc: "Client → Forward Proxy → Internet → Server. Server sees proxy's IP, not client's. Proxy can filter, cache, log." },
+      { title: "Reverse Proxy: DNS Setup", desc: "api.company.com resolves to the reverse proxy's IP, not the actual servers. Servers' IPs are hidden from clients." },
+      { title: "Reverse Proxy: Request Flow", desc: "Client → Reverse Proxy → Backend Server. Client talks to one address but gets served by many servers behind it." }
+    ],
+    example: "<strong>Forward Proxy — Corporate network:</strong> Employee's browser → Squid proxy → Internet. Proxy blocks facebook.com, logs all traffic, caches common resources. <strong>Reverse Proxy — Nginx:</strong> 10M users hit api.spotify.com → Nginx reverse proxy → inspects URL: /tracks → Music Service, /users → User Service, /playlists → Playlist Service. Single entry point, multiple backends. Nginx also handles HTTPS termination.",
+    terms: [
+      { k: "Forward proxy", v: "Proxy on behalf of clients (hides client from internet)" },
+      { k: "Reverse proxy", v: "Proxy on behalf of servers (hides servers from internet)" },
+      { k: "Nginx", v: "Popular reverse proxy / web server / LB" },
+      { k: "HAProxy", v: "High-performance TCP/HTTP load balancer" },
+      { k: "SSL termination", v: "Reverse proxy decrypts HTTPS, sends plain HTTP to backend" },
+      { k: "Request buffering", v: "Proxy buffers slow client, releases backend quickly" }
+    ],
+    pros: ["Hides internal topology from clients", "Centralized SSL management", "Request/response transformation", "Security layer (WAF, DDoS protection)"],
+    cons: ["Single point of failure if not redundant", "Added network hop", "Misconfiguration can expose internal services"]
+  },
+  {
+    id: "sql_nosql", cat: "Databases", icon: "💾", color: "databases",
+    title: "SQL vs NoSQL Databases",
+    definition: "SQL (relational) databases store data in structured tables with predefined schemas, support ACID transactions, and use SQL for complex queries. NoSQL databases offer flexible schemas, horizontal scaling, and are optimized for specific data models (document, key-value, column-family, graph).",
+    steps: [
+      { title: "SQL: Schema Definition", desc: "Define table structure upfront: CREATE TABLE orders (id BIGINT PRIMARY KEY, user_id BIGINT REFERENCES users(id), amount DECIMAL). Rigid but safe." },
+      { title: "SQL: ACID Transaction", desc: "BEGIN; UPDATE accounts SET balance = balance - 100 WHERE id=1; UPDATE accounts SET balance = balance + 100 WHERE id=2; COMMIT. Atomic — both or neither." },
+      { title: "NoSQL: Schema-less Insert", desc: "MongoDB: db.products.insertOne({name:'iPhone',price:999,specs:{ram:'8GB',storage:'256GB'}}). No pre-defined schema. Any shape." },
+      { title: "NoSQL: Horizontal Scale", desc: "Add more MongoDB shard nodes. Reads/writes distribute automatically. No schema migration needed for new fields." }
+    ],
+    example: "<strong>Use SQL (PostgreSQL):</strong> Banking system — account balances, transactions. Must be ACID. Complex queries: 'Find all transactions over $1000 from users in Mumbai in Q3'. JOINs across normalized tables. <strong>Use MongoDB:</strong> Product catalog — iPhone has specs, Book has ISBN, Car has VIN. Different attributes per product. Schema flexibility crucial. High write throughput for product updates.",
+    terms: [
+      { k: "ACID", v: "Atomicity, Consistency, Isolation, Durability" },
+      { k: "BASE", v: "Basically Available, Soft state, Eventually consistent" },
+      { k: "Normalization", v: "Remove duplication — data stored in one place" },
+      { k: "Denormalization", v: "Duplicate data for read performance" },
+      { k: "Key-Value DB", v: "Redis, DynamoDB — fastest, simplest model" },
+      { k: "Document DB", v: "MongoDB, Firestore — JSON documents" },
+      { k: "Column-family", v: "Cassandra, HBase — sparse, wide rows" },
+      { k: "Graph DB", v: "Neo4j — nodes and edges, relationship queries" },
+      { k: "Time-series DB", v: "InfluxDB, TimescaleDB — metrics and events" }
+    ],
+    pros: ["SQL: ACID guarantees, complex queries, mature ecosystem, JOINs", "NoSQL: horizontal scale, flexible schema, high write throughput, specialized models"],
+    cons: ["SQL: vertical scale limits, schema migrations painful, ORM impedance mismatch", "NoSQL: eventual consistency, no transactions (mostly), no complex queries (mostly)"]
+  },
+  {
+    id: "microservices", cat: "Architecture", icon: "🧩", color: "architecture",
+    title: "Microservices Architecture",
+    definition: "Microservices decomposes a large application into small, independently deployable services, each owning a single business capability and its own database. Services communicate via APIs or message queues. Contrast: monolith where everything is one deployable unit.",
+    steps: [
+      { title: "Client Request", desc: "Client app makes request to single entry point: api.company.com. Only the API Gateway is publicly exposed." },
+      { title: "API Gateway", desc: "Gateway handles auth (validate JWT), rate limiting, request routing, SSL termination, and request/response transformation." },
+      { title: "Service Discovery", desc: "Gateway queries service registry (Consul/Eureka) to find live instance IPs of target service. Health-checked endpoints only." },
+      { title: "Service-to-Service Call", desc: "Services communicate via REST/gRPC for synchronous calls or Kafka for async events. Each service call traced with correlation ID." },
+      { title: "Circuit Breaker", desc: "If UserService fails 5 times in 10s, circuit opens. Requests fast-fail for 30s instead of waiting for timeout. Prevents cascade failures." },
+      { title: "Independent Deployment", desc: "PaymentService team deploys new version. Only PaymentService pods restart. UserService, OrderService unaffected. Zero downtime with rolling deploy." }
+    ],
+    example: "<strong>Amazon's decomposition:</strong> Originally a monolith. Now 1000s of microservices: CartService, RecommendationService, InventoryService, ShippingService, SearchService, etc. Each team owns their service end-to-end. Prime team deploys 50 times/day without touching Marketplace team's code. Each service has its own database technology — DynamoDB for sessions, PostgreSQL for orders, ElasticSearch for search.",
+    terms: [
+      { k: "API Gateway", v: "Single entry point routing to microservices" },
+      { k: "Service registry", v: "Catalog of live service instances (Consul, Eureka)" },
+      { k: "Circuit breaker", v: "Fails fast when downstream service is unhealthy" },
+      { k: "Service mesh", v: "Sidecar proxies managing all inter-service traffic (Istio, Linkerd)" },
+      { k: "Sidecar proxy", v: "Envoy proxy running alongside each service instance" },
+      { k: "Saga pattern", v: "Distributed transaction via choreographed events" },
+      { k: "Strangler fig", v: "Migration pattern: gradually replace monolith pieces" },
+      { k: "BFF", v: "Backend For Frontend — tailored API per client type" }
+    ],
+    pros: ["Independent deploy — no big-bang releases", "Technology heterogeneity per service", "Fault isolation — one service crash doesn't kill all", "Team autonomy — Conway's Law in your favor", "Scale individual services independently"],
+    cons: ["Network latency between services (vs in-process call)", "Distributed transactions are hard (no ACID across services)", "Operational complexity — 100 services to monitor/deploy", "Service mesh overhead", "Data consistency challenges"]
+  },
+  {
+    id: "rateLimiting", cat: "Security", icon: "🛡️", color: "security",
+    title: "Rate Limiting & Throttling",
+    definition: "Rate limiting controls the number of requests a client can make in a given time window. Throttling slows excess requests instead of rejecting them. Both protect backend systems from overload, abuse, DDoS attacks, and ensure fair resource distribution among users.",
+    steps: [
+      { title: "Request Arrives", desc: "API request comes in with client identifier (API key, user ID, or IP address)." },
+      { title: "Check Rate Limit Counter", desc: "Look up client's request count in Redis: GET rate:user:12345:window:1704067200. Atomic operation." },
+      { title: "Token Bucket Algorithm", desc: "Each user gets a bucket of tokens (e.g., 100). Each request consumes 1 token. Tokens refill at 10/min. Burst of 100 allowed, then throttled to 10/min." },
+      { title: "Allow or Reject", desc: "Tokens remaining > 0: decrement counter, allow request with headers: X-RateLimit-Remaining: 47. No tokens: return 429 Too Many Requests." },
+      { title: "Rate Limit Headers", desc: "Include X-RateLimit-Limit: 100, X-RateLimit-Remaining: 47, X-RateLimit-Reset: 1704067260 so clients can self-throttle." }
+    ],
+    example: "<strong>GitHub API:</strong> Unauthenticated: 60 requests/hour. Authenticated: 5,000 requests/hour. Implementation: Redis stores {user_id: request_count} with TTL=3600s. INCR command (atomic). If count > 5000: return 429. <strong>Stripe payment API:</strong> 100 requests/second per API key using sliding window. Implemented with Redis sorted sets — remove entries older than 1 second, count remaining.",
+    terms: [
+      { k: "Token bucket", v: "Fixed capacity bucket; tokens added at fixed rate" },
+      { k: "Leaky bucket", v: "Requests processed at fixed rate; excess dropped" },
+      { k: "Fixed window", v: "Counter resets at fixed intervals (top of minute)" },
+      { k: "Sliding window", v: "Rolling time window — no burst at window boundaries" },
+      { k: "HTTP 429", v: "Too Many Requests response code" },
+      { k: "Retry-After", v: "HTTP header telling client when to retry" },
+      { k: "Throttling", v: "Slow down excess requests (vs hard reject)" }
+    ],
+    pros: ["Prevents API abuse and DDoS attacks", "Ensures fair usage across all clients", "Protects backend from overload", "Enables tiered pricing by limit level"],
+    cons: ["Distributed rate limiting needs Redis coordination", "Fixed window allows bursting at window boundaries", "Sliding window more accurate but more storage", "Hard limits may block legitimate traffic spikes"]
+  },
+  {
+    id: "hashing_security", cat: "Security", icon: "🔐", color: "security",
+    title: "Hashing, Encryption & Security",
+    definition: "Hashing converts data to a fixed-length digest (one-way, irreversible). Encryption transforms data so only authorized parties can read it (two-way with key). Understanding the difference and when to use each is fundamental to building secure systems.",
+    steps: [
+      { title: "Password Storage (Hashing)", desc: "User sets password 'mypassword123'. NEVER store plain text. Compute bcrypt/argon2 hash: bcrypt.hash('mypassword123', 12) → '$2b$12$...' (60 chars). Store hash." },
+      { title: "Password Verification", desc: "Login attempt: bcrypt.compare('mypassword123', stored_hash). bcrypt re-hashes with embedded salt. If match → authenticated. Original password never recoverable." },
+      { title: "Data Encryption (AES-256)", desc: "Encrypt sensitive field (SSN, credit card): AES-256-GCM encryption with a key stored in AWS KMS. Encrypted value stored in DB. Only decrypted when needed." },
+      { title: "Transport Encryption (TLS)", desc: "All client-server traffic over HTTPS (TLS 1.3). Certificate chain verified. All data in transit encrypted. Man-in-the-middle cannot read payloads." },
+      { title: "JWT Token Signing", desc: "Server signs auth token: JWT = base64(header) + '.' + base64(payload) + '.' + HMAC-SHA256(secret, header+payload). Signature proves token wasn't tampered." }
+    ],
+    example: "<strong>Dropbox breach lesson:</strong> 2012 breach exposed 68M hashed passwords. Older accounts used unsalted MD5 (crackable). Newer accounts used bcrypt (safe). bcrypt with cost=12 takes 250ms per hash — makes brute-force infeasible even with GPU farms. Lesson: always salt + use slow hash function (bcrypt/argon2/scrypt) for passwords.",
+    terms: [
+      { k: "Hash function", v: "One-way: data → fixed digest (SHA256, bcrypt)" },
+      { k: "Salt", v: "Random value added before hashing to prevent rainbow tables" },
+      { k: "bcrypt/argon2", v: "Intentionally slow hash functions for passwords" },
+      { k: "Symmetric encryption", v: "Same key for encrypt/decrypt (AES-256)" },
+      { k: "Asymmetric encryption", v: "Public key encrypts, private key decrypts (RSA)" },
+      { k: "TLS/SSL", v: "Transport Layer Security — encrypts all network traffic" },
+      { k: "JWT", v: "JSON Web Token — signed (not encrypted) auth token" },
+      { k: "HSM / KMS", v: "Hardware/Key Management Service for secure key storage" }
+    ],
+    pros: ["bcrypt/argon2: brute-force resistant even with GPU", "AES-256: military-grade symmetric encryption", "TLS: protects all data in transit automatically"],
+    cons: ["Slow hashing = slow login (intentional tradeoff)", "Key management complexity for encryption at rest", "JWT: can't revoke tokens before expiry without denylist"]
+  },
+  {
+    id: "websockets", cat: "Communication", icon: "↔️", color: "communication",
+    title: "WebSockets, Long Polling & SSE",
+    definition: "Real-time communication requires pushing data from server to client without the client constantly asking. Three main approaches: WebSockets (full-duplex persistent connection), Long Polling (HTTP held open until data available), and Server-Sent Events (server pushes, client read-only).",
+    steps: [
+      { title: "WebSocket Handshake", desc: "Client sends HTTP Upgrade request. Server responds 101 Switching Protocols. Connection upgrades from HTTP to WebSocket protocol. Stays open indefinitely." },
+      { title: "WebSocket Bidirectional", desc: "Both client and server can send frames at any time. No request-response cycle. Perfect for chat, collaborative editing, live dashboards." },
+      { title: "Long Polling Fallback", desc: "Client sends GET /messages. Server holds request open up to 30s. When new message arrives, server responds. Client immediately opens new request. Simulated push." },
+      { title: "SSE for Server Push", desc: "Client sends GET /events (EventSource API). Server keeps connection open, sends text/event-stream messages. Client receives updates automatically. No bidirectional needed (notifications, feeds)." }
+    ],
+    example: "<strong>Slack real-time messaging:</strong> WebSocket from each client to Slack servers. When Alice sends message → Slack server pushes to all team members' WebSocket connections immediately. No polling. 500ms perceived latency. <strong>GitHub Actions status:</strong> SSE stream to browser dashboard. Server pushes build step completions. Client only reads. No client-to-server needed.",
+    terms: [
+      { k: "WebSocket", v: "Full-duplex persistent TCP connection over port 443" },
+      { k: "ws:// / wss://", v: "WebSocket / WebSocket Secure URL schemes" },
+      { k: "Long Polling", v: "HTTP request held open until server has data" },
+      { k: "SSE", v: "Server-Sent Events — one-way server push over HTTP" },
+      { k: "EventSource", v: "Browser API for consuming SSE streams" },
+      { k: "Socket.io", v: "Library abstracting WebSocket with polling fallback" },
+      { k: "Heartbeat/ping", v: "Keep WebSocket alive through firewalls/proxies" }
+    ],
+    pros: ["WebSocket: true real-time, bidirectional, low overhead per message", "SSE: simpler than WS for server-push only, auto-reconnect built in", "Long Polling: works everywhere, no special client support needed"],
+    cons: ["WebSocket: load balancer must handle sticky sessions", "WebSocket: server holds 1 connection per online user (memory)", "Long Polling: 2× HTTP overhead, latency between polls"]
+  },
+  {
+    id: "cap_consistency", cat: "Theory", icon: "⚖️", color: "theory",
+    title: "Consistency Patterns Deep Dive",
+    definition: "Consistency describes which version of data a read returns relative to recent writes. In distributed systems, you choose how much consistency to sacrifice for performance and availability. Understanding these patterns is critical for designing correct systems.",
+    steps: [
+      { title: "Strong Consistency", desc: "After a write completes, ALL subsequent reads everywhere return that written value. Achieved via consensus (Raft/Paxos) or synchronous replication. Highest correctness, highest latency." },
+      { title: "Read-Your-Writes", desc: "After you write data, your own subsequent reads always reflect that write. Other users may still see old data. Good for user-facing updates (profile edit)." },
+      { title: "Monotonic Reads", desc: "Once you've seen a value, you'll never see an older value. If you see post #100, refreshing won't show posts only up to #90." },
+      { title: "Eventual Consistency", desc: "If no new updates are made, eventually all replicas will converge to the same value. Highest availability. Used for shopping cart totals, view counts, like counts." }
+    ],
+    example: "<strong>Facebook 'Like' button:</strong> Post has 1,024 likes. Alice likes it → her counter shows 1,025. Bob viewing same post sees 1,024 for another 50ms (eventual consistency). Acceptable. <strong>Bank transfer:</strong> Alice sends $1000 to Bob. Bob's bank must show exactly $1000 credited when the transfer completes — no eventual here, must be strong consistency with 2PC or Saga pattern.",
+    terms: [
+      { k: "Strong consistency", v: "All reads reflect the latest write immediately" },
+      { k: "Eventual consistency", v: "Converges to correct state, but not immediately" },
+      { k: "Read-your-writes", v: "Author always sees own changes immediately" },
+      { k: "Monotonic reads", v: "Reads never go back in time" },
+      { k: "Causal consistency", v: "Causally related ops seen in order" },
+      { k: "Linearizability", v: "Strongest: behaves as one atomic object" },
+      { k: "Serializability", v: "Transactions appear to run serially" }
+    ],
+    pros: ["Strong: predictable, correct — required for financial systems", "Eventual: higher availability, lower latency, better write throughput"],
+    cons: ["Strong: requires distributed coordination, higher latency", "Eventual: application must handle stale reads, conflicts, and convergence logic"]
+  },
+  {
+    id: "availability", cat: "Reliability", icon: "✅", color: "reliability",
+    title: "High Availability & Fault Tolerance",
+    definition: "Availability = percentage of time a system is operational. 99.9% = 8.7 hours downtime/year. 99.99% = 52 minutes. 99.999% (five nines) = 5 minutes. Fault tolerance means the system continues operating despite component failures through redundancy and failover mechanisms.",
+    steps: [
+      { title: "Eliminate Single Points of Failure", desc: "Every critical component must have a hot standby. Load balancer → active-passive pair. Database → primary + replicas. App servers → N+1 or N+2 redundancy." },
+      { title: "Health Checks & Auto-Recovery", desc: "Every component monitored every 10–30s. Failed component automatically removed from rotation. New instance automatically provisioned." },
+      { title: "Graceful Degradation", desc: "When recommendation service is down, show popular items instead of crashing. When payment gateway slow, queue payment and confirm later. Partial function > total failure." },
+      { title: "Circuit Breakers", desc: "If downstream service fails repeatedly, open circuit (fail-fast) instead of waiting for timeout on every request. Prevents cascading failures." },
+      { title: "Chaos Engineering", desc: "Netflix Chaos Monkey randomly kills production instances to verify system recovers. 'Practice failure before it practices on you'." }
+    ],
+    example: "<strong>AWS S3 availability:</strong> 99.999999999% durability (11 nines). Achieved by storing every object in 3+ availability zones. If one AZ burns down, data still safe. <strong>Achieving 99.99% availability:</strong> Use multiple AZs, auto-scaling groups, multi-region with active-active, DB replicas with auto-failover, CDN for static assets, circuit breakers for dependencies.",
+    terms: [
+      { k: "SLA", v: "Service Level Agreement — guaranteed uptime %" },
+      { k: "SLO", v: "Service Level Objective — internal target" },
+      { k: "SLI", v: "Service Level Indicator — measured metric" },
+      { k: "MTTR", v: "Mean Time To Recovery — avg time to fix outage" },
+      { k: "MTBF", v: "Mean Time Between Failures — avg time between outages" },
+      { k: "Active-Active", v: "Both nodes serve traffic simultaneously" },
+      { k: "Active-Passive", v: "Standby takes over only on failure" },
+      { k: "Chaos Engineering", v: "Deliberately introduce failures to test resilience" },
+      { k: "Bulkhead pattern", v: "Isolate failures: separate thread pools per dependency" }
+    ],
+    pros: ["Business continuity despite hardware/software failures", "Zero or minimal downtime for users", "Automated recovery without human intervention"],
+    cons: ["Cost: redundant infrastructure at least doubles hardware cost", "Complexity: failover logic, state sync, split-brain scenarios", "Testing: hard to verify HA works without breaking things"]
+  },
+  {
+    id: "monitoring", cat: "Reliability", icon: "📊", color: "reliability",
+    title: "Monitoring, Logging & Observability",
+    definition: "Observability is the ability to understand a system's internal state from its external outputs. The three pillars are Metrics (numerical measurements over time), Logs (timestamped text events), and Traces (request journeys across services). Without observability, you're flying blind.",
+    steps: [
+      { title: "Metrics Collection", desc: "App emits metrics: request_count, error_rate, latency_p99, cpu_usage. Prometheus scrapes metrics every 15s. Grafana visualizes time-series graphs and alerts." },
+      { title: "Structured Logging", desc: "Log every request/response as JSON: {timestamp, request_id, user_id, method, path, status, duration_ms, error}. Ship to ELK Stack (Elasticsearch, Logstash, Kibana) or Datadog." },
+      { title: "Distributed Tracing", desc: "Generate trace_id for every request. Propagate via HTTP headers (X-Trace-ID). Each service creates a span. Jaeger/Zipkin reconstructs full request journey across 10 services." },
+      { title: "Alerting", desc: "PagerDuty alert if: error_rate > 1% for 5min, p99 latency > 500ms, CPU > 80% for 10min. On-call engineer notified. Runbook link included in alert." }
+    ],
+    example: "<strong>Debugging a production incident:</strong> Alert: payment error rate spiked to 5%. Open Grafana → error_rate graph shows spike at 14:32. Open Kibana → filter logs: status=500 at 14:32. Find: 'Connection refused: database'. Open Jaeger → trace shows PaymentService → DB call timing out at 30s. Root cause: DB disk full. Resolution: expand disk. Resolved in 12 minutes. Without observability: hours.",
+    terms: [
+      { k: "Metrics", v: "Numerical measurements: counters, gauges, histograms" },
+      { k: "Logs", v: "Timestamped structured text events" },
+      { k: "Traces", v: "Request journey across distributed services" },
+      { k: "Span", v: "Single operation within a distributed trace" },
+      { k: "p99 latency", v: "99th percentile — 99% of requests faster than this" },
+      { k: "RED method", v: "Rate, Errors, Duration — three key metrics per service" },
+      { k: "USE method", v: "Utilization, Saturation, Errors — for infrastructure" },
+      { k: "Prometheus", v: "Time-series metrics scraping and alerting" },
+      { k: "ELK Stack", v: "Elasticsearch + Logstash + Kibana for log management" }
+    ],
+    pros: ["Detect issues before customers notice", "Dramatically faster incident resolution (MTTR)", "Data-driven capacity planning", "Compliance audit trails"],
+    cons: ["Metrics/log storage is expensive at scale", "Alert fatigue from too many alerts", "Distributed tracing adds ~5% overhead", "Correlation across systems requires consistent trace IDs"]
+  },
+  {
+    id: "searching", cat: "Performance", icon: "🔍", color: "performance",
+    title: "Search Systems & Elasticsearch",
+    definition: "Full-text search requires more than SQL LIKE queries. Dedicated search engines (Elasticsearch, Solr) use inverted indexes: mapping each word to all documents containing it. Features include relevance scoring, fuzzy matching, facets, aggregations, and real-time indexing.",
+    steps: [
+      { title: "Indexing Documents", desc: "Document ingested: {id:1, title:'System Design Primer', body:'...caching, sharding...'}. Analyzer tokenizes, lowercases, removes stop words, stems: ['system','design','primer','cach','shard']." },
+      { title: "Building Inverted Index", desc: "For each token, record which documents contain it: 'cache' → [doc:1, doc:7, doc:23, doc:84]. This is the inverted index. Stored in Lucene segments." },
+      { title: "Query Execution", desc: "User searches 'caching strategies'. Tokenize: ['cach','strategi']. Look up both tokens in inverted index. Find document intersection or union." },
+      { title: "Relevance Scoring (TF-IDF/BM25)", desc: "Score each matching doc: TF (term frequency in doc) × IDF (how rare term is globally). 'caching' appearing 10 times in a 50-word doc scores higher than once in a 1000-word doc." },
+      { title: "Return Ranked Results", desc: "Return documents sorted by relevance score. Top 10 returned (pagination). Total count for 'Showing 1-10 of 2,847 results'." }
+    ],
+    example: "<strong>GitHub code search:</strong> 300 million repositories, billions of files. Elasticsearch cluster with 100+ nodes. Code indexed as tokens. Search 'deadlockException Java' → tokens: ['deadlock','except','java'] → inverted index lookup across 100 shards in parallel → merge & rank → return top 10 in 200ms. Fuzzy matching finds 'DeadlockException' even if user typed 'deadlockexception'.",
+    terms: [
+      { k: "Inverted index", v: "Maps tokens → document IDs (core search structure)" },
+      { k: "TF-IDF", v: "Term Frequency × Inverse Document Frequency = relevance score" },
+      { k: "BM25", v: "Better TF-IDF variant used by Elasticsearch by default" },
+      { k: "Tokenizer/Analyzer", v: "Breaks text into searchable tokens, normalizes" },
+      { k: "Shard (ES)", v: "Elasticsearch partition — each is a Lucene index" },
+      { k: "Replica (ES)", v: "Redundant copy of a shard for HA and read scaling" },
+      { k: "Fuzzy matching", v: "Find terms within edit distance N of query term" },
+      { k: "Facets/aggregations", v: "Count results by category, price range, date, etc." }
+    ],
+    pros: ["Full-text search with relevance ranking", "Near real-time indexing (~1s latency)", "Distributed — scales to billions of docs", "Rich query DSL: fuzzy, range, geo, aggregations"],
+    cons: ["Eventually consistent (not ACID)", "Complex query language to master", "Resource intensive — ES clusters need tuning", "Not a primary database — keep source of truth elsewhere"]
+  },
+  {
+    id: "scaling", cat: "Scalability", icon: "📈", color: "scalability",
+    title: "Horizontal vs Vertical Scaling",
+    definition: "Vertical scaling (scale up) means adding more resources to an existing machine (more CPU, RAM, disk). Horizontal scaling (scale out) means adding more machines. Both have tradeoffs. Most large-scale systems use horizontal scaling as the primary strategy.",
+    steps: [
+      { title: "Start: Single Server", desc: "App starts on t3.micro (2 CPU, 1GB RAM). Works for 1,000 users/day. Cost: $10/month." },
+      { title: "Vertical Scale First", desc: "Traffic grows. Upgrade to c5.4xlarge (16 CPU, 32GB RAM). App code unchanged. Cost: $550/month. Works for ~100k users/day. But now single point of failure." },
+      { title: "Hit Vertical Ceiling", desc: "Traffic grows more. Largest single machine is u-24tb1.metal (224 CPU, 24TB RAM, $65,000/month). Can't go higher. And still one server — any failure = 100% outage." },
+      { title: "Horizontal Scale Out", desc: "Run 50 identical app servers behind load balancer. Each handles fraction of traffic. Add more servers instantly for traffic spikes (auto-scaling). Failure of one = 2% degradation, not 100% outage." },
+      { title: "Auto-scaling", desc: "Define: minimum 3 instances, scale out when CPU > 70% for 5 minutes, scale in when CPU < 30% for 15 minutes. AWS/GCP auto-provisions and terminates instances." }
+    ],
+    example: "<strong>Instagram growth:</strong> Launched on single Amazon EC2 instance. 6 weeks later: outgrowing it. Moved to horizontally scaled setup. Key architectural decision: keep app servers stateless (no local state) → any request can go to any server → horizontal scaling trivial. Sessions stored in Redis (shared), not server memory.",
+    terms: [
+      { k: "Vertical scaling", v: "Bigger machine: more CPU, RAM, disk (scale up)" },
+      { k: "Horizontal scaling", v: "More machines (scale out)" },
+      { k: "Stateless", v: "No local state — same server can handle any request" },
+      { k: "Auto-scaling", v: "Automatically add/remove instances based on load" },
+      { k: "Elasticity", v: "Ability to rapidly provision and de-provision resources" },
+      { k: "Scale-out limit", v: "Bottlenecks: DB, shared state, session storage" }
+    ],
+    pros: ["Horizontal: near-unlimited scale, fault tolerant, cheaper commodity hardware", "Vertical: no code changes, simpler architecture, lower latency (no network hops)"],
+    cons: ["Horizontal: requires stateless design, more complex ops, load balancer needed", "Vertical: single point of failure, hard ceiling, expensive premium hardware"]
+  },
+  {
+    id: "blob_storage", cat: "Storage", icon: "🗃️", color: "databases",
+    title: "Blob Storage & Object Storage",
+    definition: "Blob/Object storage is designed for unstructured data: images, videos, audio, backups, logs. Unlike databases (structured) or file systems (hierarchical), object storage is flat with a key → blob mapping. Massively scalable. AWS S3, Google Cloud Storage, Azure Blob are examples.",
+    steps: [
+      { title: "Upload Object", desc: "Client uploads file. HTTP PUT /buckets/my-app/images/user-456/avatar.jpg with binary body. Storage system returns 200 OK + ETag (MD5 hash of content)." },
+      { title: "Distributed Storage", desc: "File split into chunks if >5MB. Chunks distributed across 3+ storage nodes across 3+ AZs. Erasure coding or 3× replication ensures durability." },
+      { title: "Content Addressing", desc: "Object accessed by key (bucket + path). Globally unique. Returns same bytes every time. No filename collisions in a bucket." },
+      { title: "CDN Integration", desc: "Set origin to S3 bucket. CDN fetches object once, caches at edge globally. Subsequent requests served from CDN (5ms vs 100ms to S3)." },
+      { title: "Lifecycle Policies", desc: "Logs older than 30 days → move to S3 Glacier (10× cheaper). Older than 365 days → delete. Automated cost optimization." }
+    ],
+    example: "<strong>Dropbox:</strong> Stores billions of files. Every file deduped by SHA-256 hash — if two users upload identical file, stored only once. Files chunked (4MB pieces), each chunk hashed, changed chunks synced (not whole file). Chunks stored in S3 with metadata in Dropbox's own DB. 11 nines durability — storing in multiple AZs.",
+    terms: [
+      { k: "Bucket", v: "Namespace for objects (like a folder at root)" },
+      { k: "Object key", v: "Unique path to object within a bucket" },
+      { k: "ETag", v: "Entity tag — hash of content, for cache validation" },
+      { k: "Presigned URL", v: "Temporary authenticated URL for private objects" },
+      { k: "Multipart upload", v: "Upload large files in parallel chunks" },
+      { k: "S3 Glacier", v: "Cheap archival storage with minutes-to-hours retrieval" },
+      { k: "Versioning", v: "Keep all versions of an object (audit, recovery)" },
+      { k: "Erasure coding", v: "Store data + parity blocks, survive multiple node failures" }
+    ],
+    pros: ["11 nines durability", "Virtually unlimited storage", "Pay only for what you use", "Built-in CDN integration", "Lifecycle policies automate cost management"],
+    cons: ["Not a filesystem — no append, no partial updates", "Eventual consistency in some regions/operations", "Egress bandwidth costs add up", "Cold Glacier data takes minutes to retrieve"]
+  },
+  {
+    id: "design_pastebin", cat: "Design", icon: "📋", color: "design",
+    title: "Case Study: Design a URL Shortener",
+    definition: "URL shorteners (bit.ly, tinyurl.com) convert long URLs to short codes and redirect users. This is a classic system design interview question covering: ID generation, key-value storage, caching, and redirection at scale.",
+    steps: [
+      { title: "Requirements", desc: "Functional: shorten URL, redirect to original, custom aliases. Non-functional: 100M URLs/day created, 10B redirects/day (100:1 read:write), 99.9% availability, <10ms redirect latency." },
+      { title: "Short Code Generation", desc: "Need 7-character base62 (a-zA-Z0-9) code = 62^7 = 3.5 trillion combos. Generate: encode(auto_increment_id) in base62. ID 12345 → 'dnh'. Globally unique, no collision." },
+      { title: "Storage Design", desc: "Store: {short_code: 'dnh', long_url: 'https://...', user_id, created_at, expiry, click_count}. Use Redis for hot cache (70% of traffic hits same 1% of URLs). DynamoDB for persistence." },
+      { title: "Redirect Flow", desc: "GET /dnh → App checks Redis: GET url:dnh → cache hit → HTTP 301/302 redirect to long URL. Cache miss → DynamoDB lookup → cache in Redis → redirect." },
+      { title: "Scale for 10B Redirects/Day", desc: "10B/86400s = ~115,000 redirects/sec. Redis can handle 1M ops/sec. 5 app servers behind load balancer. Horizontal scaling as needed. CDN for redirect responses if using 301." }
+    ],
+    example: "<strong>Architecture decision: 301 vs 302 redirect?</strong> 301 (Permanent): Browser caches redirect — next visit goes directly to destination, bypassing your servers. Better for performance, but you lose click analytics. 302 (Temporary/Found): Browser always asks your server — you track every click for analytics. Bit.ly uses 301 for performance after first click.",
+    terms: [
+      { k: "Base62 encoding", v: "Encode numbers using a-zA-Z0-9 (62 chars)" },
+      { k: "301 redirect", v: "Permanent — browser caches destination" },
+      { k: "302 redirect", v: "Temporary — browser always re-checks" },
+      { k: "Bloom filter", v: "Space-efficient check if URL already exists" },
+      { k: "Custom alias", v: "User-chosen short code (e.g., /my-resume)" }
+    ],
+    pros: ["Great interview question — covers caching, DB design, ID generation, scale"],
+    cons: ["Spam/phishing using short URLs", "Link rot — original URL dies but short link persists", "Single DB can become bottleneck at extreme scale"]
+  },
+  {
+    id: "design_twitter", cat: "Design", icon: "🐦", color: "design",
+    title: "Case Study: Design Twitter/X Feed",
+    definition: "Designing a social media feed is a canonical system design challenge. It involves: user graph storage, feed generation (pull vs push), fanout strategies, and massive read/write scale. Twitter has 400M users, 500M tweets/day, and the feed must load in <200ms.",
+    steps: [
+      { title: "Requirements & Scale", desc: "500M tweets/day = 5,787/sec writes. 100B feed reads/day = 1.16M/sec reads. Avg user follows 200 people. Celebrity has 100M followers (Elon Musk). This celebrity problem changes everything." },
+      { title: "Naive Pull Model (Bad)", desc: "User opens app → fetch tweets from all 200 followed users → merge & sort. Problem: 200 DB queries per feed load at 1.16M req/sec = 232M DB queries/sec. Impossible." },
+      { title: "Push Model — Fanout on Write", desc: "When normal user (200 followers) tweets → pre-compute feed for all 200 followers → write tweet_id to each follower's feed list in Redis. Feed load = 1 Redis read. Very fast." },
+      { title: "Celebrity Exception", desc: "Elon Musk tweets → fanout to 100M followers = 100M Redis writes per tweet. Takes minutes. Solution: hybrid. Celebrities use pull model. Normal users use push. Merge on feed load." },
+      { title: "Feed Load", desc: "GET /feed → fetch pre-computed feed list from Redis (push users) + fetch recent tweets from followed celebrities (pull) → merge by timestamp → paginate → return 20 tweets." }
+    ],
+    example: "<strong>Twitter's actual architecture:</strong> Feed stored in Redis timelines as sorted sets (sorted by tweet_id/time). Fanout service writes to follower timelines asynchronously via Kafka. Celebrities excluded from fanout — their tweets injected at read time. Redis cluster holds hot timelines in memory. UserTimeline (your tweets) vs HomeTimeline (your feed) stored separately.",
+    terms: [
+      { k: "Fanout on write", v: "Push tweet to all followers' feeds at write time" },
+      { k: "Fanout on read", v: "Compute feed at read time by pulling from followees" },
+      { k: "Celebrity problem", v: "High-follower users make write fanout infeasible" },
+      { k: "Hybrid fanout", v: "Push for normal users, pull for celebrities, merge on read" },
+      { k: "Home timeline", v: "Your feed — what others tweeted" },
+      { k: "User timeline", v: "Your tweets — what you tweeted" }
+    ],
+    pros: ["Push/fanout: O(1) feed reads, great for active users", "Pull: write once, not N times — great for celebrities"],
+    cons: ["Push: write amplification for viral users, stale feeds for inactive users", "Pull: slow feed load, complex aggregation, heavy DB load"]
+  },
+  {
+    id: "design_chat", cat: "Design", icon: "💬", color: "design",
+    title: "Case Study: Design WhatsApp/Chat System",
+    definition: "Real-time chat systems require: persistent connections per user, message delivery guarantees, online/offline status, message ordering, and end-to-end encryption. WhatsApp serves 2 billion users, 100 billion messages/day.",
+    steps: [
+      { title: "Connection Management", desc: "Each online user maintains a WebSocket connection to a Chat Server. Chat Server remembers: user_id → WebSocket connection. 100M concurrent connections → need 100s of chat servers (1M connections each)." },
+      { title: "Sending a Message", desc: "Alice sends message to Bob. Client → Alice's Chat Server via WebSocket. Chat Server writes message to DB with status=SENT. Publishes to message queue with Bob's user_id." },
+      { title: "Routing to Recipient", desc: "Message broker looks up: which Chat Server holds Bob's connection? Use presence service (Redis): user:bob → chat-server-42. Route message to chat-server-42." },
+      { title: "Delivery to Bob", desc: "Chat-server-42 looks up Bob's WebSocket connection. Pushes message. Bob's client receives → sends ACK → status updated to DELIVERED." },
+      { title: "Offline User", desc: "Bob is offline. No active WebSocket. Message stored in DB with status=SENT. When Bob comes online → connects to chat server → fetches undelivered messages → marks DELIVERED." },
+      { title: "Message Ordering", desc: "Each message gets a monotonically increasing ID per conversation. Client-side sequence numbers prevent duplicates and enable ordering guarantees." }
+    ],
+    example: "<strong>WhatsApp at scale:</strong> Built on Erlang/OTP — handles millions of concurrent connections per server efficiently. ~1000 engineers for 2B users (remarkable efficiency). Uses Signal Protocol for E2E encryption. Messages stored encrypted, WhatsApp can't read them. 7-day message storage by default. Group messages fan out to all members.",
+    terms: [
+      { k: "WebSocket", v: "Persistent bidirectional connection for real-time delivery" },
+      { k: "Presence service", v: "Tracks which users are online and their server" },
+      { k: "Message status", v: "Sent (✓), Delivered (✓✓), Read (blue ✓✓)" },
+      { k: "E2E encryption", v: "Message encrypted on sender device, only recipient can decrypt" },
+      { k: "Signal Protocol", v: "End-to-end encryption protocol used by WhatsApp, Signal" },
+      { k: "Push notification", v: "Wake up offline mobile client about new message" }
+    ],
+    pros: ["WebSocket enables sub-100ms message delivery", "Async Kafka routing handles server failures gracefully", "Offline queue ensures no message loss"],
+    cons: ["Connection state management complex at scale", "Group messages with 256 members = 256× write amplification", "E2E encryption limits server-side moderation"]
+  },
+  {
+    id: "bloom_filter", cat: "Algorithms", icon: "🌸", color: "algorithms",
+    title: "Bloom Filters & Probabilistic Structures",
+    definition: "A Bloom filter is a space-efficient probabilistic data structure that tests whether an element is in a set. It can have false positives (says 'yes' when the answer is 'no') but never false negatives (if it says 'no', the element definitely isn't in the set). Uses a fraction of the memory of a hash set.",
+    steps: [
+      { title: "Create Bit Array", desc: "Allocate m-bit array, all zeros. Choose k independent hash functions." },
+      { title: "Add Element", desc: "To add 'alice@email.com': compute hash1, hash2, hash3. Set bits at those positions to 1. Element is now 'represented' in the filter." },
+      { title: "Query Element", desc: "To check 'bob@email.com': compute hash1, hash2, hash3. Check those bit positions. If ALL are 1 → probably in set (may be false positive). If ANY is 0 → definitely NOT in set." },
+      { title: "False Positive Rate", desc: "As more elements added, more bits set to 1. Probability of all k bits being set by coincidence increases → higher false positive rate. Tune m (bits) and k (hashes) for target error rate." }
+    ],
+    example: "<strong>Google Chrome Safe Browsing:</strong> 1 billion malicious URLs. Can't download entire list to every browser. Solution: Bloom filter of all malicious URLs. Download 2MB compressed filter. Check any URL in microseconds locally. If Bloom filter says 'might be malicious' → fetch full list from server to confirm. False positive = unnecessary server call. False negative never happens = complete protection.",
+    terms: [
+      { k: "False positive", v: "Filter says 'in set' but element isn't — acceptable" },
+      { k: "False negative", v: "Never happens — if filter says 'not in set', it's true" },
+      { k: "Bit array", v: "Core data structure — array of bits, space efficient" },
+      { k: "Hash functions (k)", v: "Number of hash functions — more = lower FP but slower" },
+      { k: "HyperLogLog", v: "Probabilistic cardinality estimation — approx unique count" },
+      { k: "Count-Min Sketch", v: "Approximate frequency counting" }
+    ],
+    pros: ["Extremely space-efficient: 1 billion items in ~1.2GB at 1% FP rate", "O(k) insertion and query regardless of set size", "Cache-friendly — single memory access pattern"],
+    cons: ["Cannot retrieve elements — only membership testing", "Cannot delete elements (use Counting Bloom Filter)", "False positive rate increases as more elements added", "Need to know expected element count in advance"]
+  },
+  {
+    id: "two_phase_commit", cat: "Databases", icon: "🤝", color: "databases",
+    title: "Distributed Transactions — 2PC & Saga",
+    definition: "When a transaction spans multiple services or databases, maintaining ACID properties requires distributed coordination. Two-Phase Commit (2PC) is the classic approach. Saga is the modern microservices alternative using compensating transactions.",
+    steps: [
+      { title: "2PC Phase 1: Prepare", desc: "Coordinator sends PREPARE to all participants. Each participant acquires locks, writes to WAL, responds VOTE-COMMIT or VOTE-ABORT. Locks held until coordinator decides." },
+      { title: "2PC Phase 2: Commit", desc: "If ALL participants voted commit: Coordinator sends COMMIT to all. Each participant commits, releases locks, acks coordinator. If ANY voted abort: Coordinator sends ABORT — all rollback." },
+      { title: "2PC Problem: Coordinator Failure", desc: "If coordinator crashes after PREPARE but before COMMIT, all participants are stuck holding locks indefinitely — this is 2PC's main flaw (blocking protocol)." },
+      { title: "Saga: Choreography", desc: "Each service publishes an event after its step. OrderService (order placed) → PaymentService (charge card) → InventoryService (decrement stock). Each event triggers next service." },
+      { title: "Saga: Compensating Transactions", desc: "If PaymentService fails after OrderService succeeded: emit PaymentFailed event → OrderService runs compensating transaction: CancelOrder. Each step has a rollback action." }
+    ],
+    example: "<strong>E-commerce checkout Saga:</strong> 1) OrderService creates order (PENDING) → 2) PaymentService charges card → success: emit PaymentSucceeded → 3) InventoryService reserves item → success: emit InventoryReserved → 4) OrderService marks CONFIRMED. If step 3 fails (out of stock): emit InventoryFailed → PaymentService refunds → OrderService cancels. Eventual consistency with no distributed locks.",
+    terms: [
+      { k: "2PC", v: "Two-Phase Commit — blocking distributed transaction protocol" },
+      { k: "Coordinator", v: "Node that orchestrates the 2PC transaction" },
+      { k: "Participant", v: "Node involved in the 2PC transaction" },
+      { k: "Saga", v: "Sequence of local transactions with compensating rollbacks" },
+      { k: "Compensating transaction", v: "Semantic undo for a completed step" },
+      { k: "Orchestration", v: "Central coordinator tells each service what to do" },
+      { k: "Choreography", v: "Services react to events — no central coordinator" }
+    ],
+    pros: ["2PC: strong ACID guarantees across systems", "Saga: no distributed locks, high availability, works with microservices"],
+    cons: ["2PC: blocking on coordinator failure, poor performance at scale", "Saga: complex to design, eventual consistency, compensating transactions can fail too"]
+  }
+];
+
+// Build nav
+const cats = {};
+topics.forEach(t => {
+  if (!cats[t.cat]) cats[t.cat] = [];
+  cats[t.cat].push(t);
+});
+
+const catColors = {
+  Networking: '#6af7c0', Scalability: '#7c6af7', Performance: '#f7b76a',
+  Databases: '#6ab4f7', Theory: '#f76a6a', Architecture: '#c06af7',
+  Async: '#6af7f7', Security: '#f7f76a', Algorithms: '#f76ac0',
+  Design: '#6af790', Reliability: '#f7956a', Communication: '#6a95f7',
+  APIs: '#f7c06a', Storage: '#a06af7'
+};
+
+const navLinks = document.getElementById('navLinks');
+Object.entries(cats).forEach(([cat, items]) => {
+  const catDiv = document.createElement('div');
+  catDiv.innerHTML = `<div class="nav-cat">${cat}</div>`;
+  items.forEach(t => {
+    const a = document.createElement('a');
+    a.className = 'nav-item';
+    a.href = '#' + t.id;
+    a.innerHTML = `<span class="nav-dot" style="background:${catColors[cat]||'#7c6af7'}"></span>${t.title.split('—')[0].trim()}`;
+    a.onclick = () => {
+      document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+      a.classList.add('active');
+      if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+    };
+    catDiv.appendChild(a);
+  });
+  navLinks.appendChild(catDiv);
+});
+
+document.getElementById('topicCount').textContent = topics.length;
+
+function escapeHtml(s) {
+  return s.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderTopics(list) {
+  const content = document.getElementById('content');
+  content.innerHTML = list.map(t => `
+    <section class="topic-section cat-${t.color}" id="${t.id}">
+      <div class="section-header">
+        <div class="section-icon">${t.icon}</div>
+        <div class="section-title">${t.title}</div>
+        <span class="section-cat">${t.cat}</span>
+      </div>
+      <div class="topic-card">
+        <div class="card-inner">
+          <div class="label">Definition</div>
+          <p class="definition">${t.definition}</p>
+
+          <div class="label">Step-by-Step Process</div>
+          <div class="process">
+            ${t.steps.map((s,i) => `
+              <div class="step">
+                <div class="step-num">${i+1}</div>
+                <div class="step-content">
+                  <div class="step-title">${s.title}</div>
+                  <div class="step-desc">${s.desc}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="label">Real-World Example</div>
+          <div class="example">${t.example}</div>
+
+          <div class="label">Key Terms</div>
+          <div class="terms-grid">
+            ${t.terms.map(k => `
+              <div class="term">
+                <div class="term-key">${k.k}</div>
+                <div class="term-val">${k.v}</div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="label">Trade-offs</div>
+          <div class="pros-cons">
+            <div class="pros">
+              <h4>+ Advantages</h4>
+              <ul>${t.pros.map(p => `<li>${p}</li>`).join('')}</ul>
+            </div>
+            <div class="cons">
+              <h4>− Disadvantages</h4>
+              <ul>${t.cons.map(c => `<li>${c}</li>`).join('')}</ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  `).join('');
+}
+
+function handleSearch(q) {
+  const lq = q.toLowerCase();
+  if (!lq) { renderTopics(topics); return; }
+  const filtered = topics.filter(t =>
+    t.title.toLowerCase().includes(lq) ||
+    t.definition.toLowerCase().includes(lq) ||
+    t.cat.toLowerCase().includes(lq) ||
+    t.terms.some(k => k.k.toLowerCase().includes(lq) || k.v.toLowerCase().includes(lq))
+  );
+  renderTopics(filtered);
+}
+
+renderTopics(topics);
+
+// Active nav on scroll
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = e.target.id;
+      document.querySelectorAll('.nav-item').forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { threshold: 0.3 });
+document.querySelectorAll('.topic-section').forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
